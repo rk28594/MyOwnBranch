@@ -294,6 +294,30 @@ class ShiftRepositoryTest {
         }
 
         @Test
+        @DisplayName("Should not detect conflict for adjacent shifts (back-to-back) - SCRUM-19")
+        void shouldNotDetectConflictForAdjacentShifts() {
+            // Arrange - Existing shift 1 PM to 3 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalDateTime.of(2026, 1, 23, 13, 0))
+                    .endTime(LocalDateTime.of(2026, 1, 23, 15, 0))
+                    .room("Room 101")
+                    .build();
+            shiftRepository.save(existingShift);
+            entityManager.flush();
+            entityManager.clear();
+
+            // Act - Check for conflict with 3 PM to 5 PM (starts exactly when previous ends)
+            List<Shift> conflicts = shiftRepository.findConflictingShifts(
+                    1L,
+                    LocalDateTime.of(2026, 1, 23, 15, 0),
+                    LocalDateTime.of(2026, 1, 23, 17, 0));
+
+            // Assert - Should not conflict as shifts are exactly adjacent
+            assertThat(conflicts).isEmpty();
+        }
+
+        @Test
         @DisplayName("Should not detect conflict for different doctors - SCRUM-19")
         void shouldNotDetectConflictForDifferentDoctors() {
             // Arrange - Existing shift for doctor 1
