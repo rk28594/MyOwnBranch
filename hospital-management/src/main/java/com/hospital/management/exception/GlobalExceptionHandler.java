@@ -56,6 +56,44 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle InvalidTimeSlotException - Story SCRUM-18
+     * Test Scenario: When startTime is 10:00 and endTime is 09:00, Then save operation fails
+     */
+    @ExceptionHandler(InvalidTimeSlotException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTimeSlotException(
+            InvalidTimeSlotException ex, WebRequest request) {
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handle ShiftConflictException - Story SCRUM-19
+     * Test Scenario: Given a doctor is busy from 1 PM to 3 PM, When adding a shift at 2 PM, Then the system rejects it
+     */
+    @ExceptionHandler(ShiftConflictException.class)
+    public ResponseEntity<ErrorResponse> handleShiftConflictException(
+            ShiftConflictException ex, WebRequest request) {
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    /**
      * Handle validation errors
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
