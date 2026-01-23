@@ -27,10 +27,9 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
      * Find overlapping shifts for a doctor - Story SCRUM-19: Shift Conflict Validator
      * Checks if there are any existing shifts that overlap with the given time range
      * 
-     * A shift overlaps if:
-     * - The new shift starts during an existing shift (existing.startTime <= newStartTime < existing.endTime)
-     * - The new shift ends during an existing shift (existing.startTime < newEndTime <= existing.endTime)
-     * - The new shift completely contains an existing shift (newStartTime <= existing.startTime AND newEndTime >= existing.endTime)
+     * Uses the standard interval overlap formula: two intervals overlap if and only if
+     * (start1 < end2 AND end1 > start2). This correctly handles all overlap cases while
+     * treating back-to-back shifts as non-conflicting.
      * 
      * @param doctorId the doctor ID
      * @param startTime the start time of the new shift
@@ -38,9 +37,7 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
      * @return list of conflicting shifts
      */
     @Query("SELECT s FROM Shift s WHERE s.doctorId = :doctorId " +
-           "AND ((s.startTime <= :startTime AND s.endTime > :startTime) " +
-           "OR (s.startTime < :endTime AND s.endTime >= :endTime) " +
-           "OR (s.startTime >= :startTime AND s.endTime <= :endTime))")
+           "AND (s.startTime < :endTime AND s.endTime > :startTime)")
     List<Shift> findConflictingShifts(
             @Param("doctorId") Long doctorId,
             @Param("startTime") LocalDateTime startTime,
@@ -48,12 +45,11 @@ public interface ShiftRepository extends JpaRepository<Shift, Long> {
     
     /**
      * Find overlapping shifts excluding a specific shift (for updates)
+     * Uses the standard interval overlap formula to detect conflicts
      */
     @Query("SELECT s FROM Shift s WHERE s.doctorId = :doctorId " +
            "AND s.id != :excludeShiftId " +
-           "AND ((s.startTime <= :startTime AND s.endTime > :startTime) " +
-           "OR (s.startTime < :endTime AND s.endTime >= :endTime) " +
-           "OR (s.startTime >= :startTime AND s.endTime <= :endTime))")
+           "AND (s.startTime < :endTime AND s.endTime > :startTime)")
     List<Shift> findConflictingShiftsExcluding(
             @Param("doctorId") Long doctorId,
             @Param("startTime") LocalDateTime startTime,

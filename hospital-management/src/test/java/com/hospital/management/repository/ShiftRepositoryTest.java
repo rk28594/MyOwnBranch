@@ -318,6 +318,30 @@ class ShiftRepositoryTest {
         }
 
         @Test
+        @DisplayName("Should not detect conflict for back-to-back shifts - SCRUM-19")
+        void shouldNotDetectConflictForBackToBackShifts() {
+            // Arrange - Existing shift 1 PM to 3 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalDateTime.of(2026, 1, 23, 13, 0))
+                    .endTime(LocalDateTime.of(2026, 1, 23, 15, 0))
+                    .room("Room 101")
+                    .build();
+            shiftRepository.save(existingShift);
+            entityManager.flush();
+            entityManager.clear();
+
+            // Act - Check for conflict with 3 PM to 5 PM (starts when previous ends)
+            List<Shift> conflicts = shiftRepository.findConflictingShifts(
+                    1L,
+                    LocalDateTime.of(2026, 1, 23, 15, 0),
+                    LocalDateTime.of(2026, 1, 23, 17, 0));
+
+            // Assert
+            assertThat(conflicts).isEmpty();
+        }
+
+        @Test
         @DisplayName("Should exclude specific shift when checking conflicts")
         void shouldExcludeSpecificShiftWhenCheckingConflicts() {
             // Arrange
