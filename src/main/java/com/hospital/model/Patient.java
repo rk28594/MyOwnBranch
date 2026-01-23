@@ -51,6 +51,9 @@ public class Patient {
     @Column(name = "is_critical", nullable = false)
     private Boolean isCritical = false; // Flag to alert staff of high-priority cases
 
+    @Column(name = "blood_group")
+    private String bloodGroup; // Blood group of the patient (e.g., A+, B-, O+, AB-)
+
     // Constructors
     public Patient() {
     }
@@ -63,6 +66,17 @@ public class Patient {
         this.gender = gender;
         this.department = department;
         this.isCritical = isCritical != null ? isCritical : false;
+    }
+
+    public Patient(String firstName, String lastName, LocalDate dateOfBirth, 
+                   Gender gender, String department, Boolean isCritical, String bloodGroup) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.dateOfBirth = dateOfBirth;
+        this.gender = gender;
+        this.department = department;
+        this.isCritical = isCritical != null ? isCritical : false;
+        this.bloodGroup = bloodGroup;
     }
 
     // Getters and Setters
@@ -130,6 +144,14 @@ public class Patient {
         this.isCritical = isCritical;
     }
 
+    public String getBloodGroup() {
+        return bloodGroup;
+    }
+
+    public void setBloodGroup(String bloodGroup) {
+        this.bloodGroup = bloodGroup;
+    }
+
     /**
      * Calculate patient's age based on date of birth
      */
@@ -171,6 +193,7 @@ public class Patient {
                 ", admittedDate=" + admittedDate +
                 ", department='" + department + '\'' +
                 ", isCritical=" + isCritical +
+                ", bloodGroup='" + bloodGroup + '\'' +
                 '}';
     }
 

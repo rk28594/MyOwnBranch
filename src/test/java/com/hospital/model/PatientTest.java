@@ -27,6 +27,7 @@ class PatientTest {
                 "Cardiology",
                 false
         );
+        patient.setBloodGroup("O+");
     }
 
     @Test
@@ -143,5 +144,62 @@ class PatientTest {
         );
         assertEquals(0, newborn.getAge());
         assertTrue(newborn.isValidAge());
+    }
+
+    @Test
+    @DisplayName("Should set and get blood group correctly")
+    void testBloodGroupSetterGetter() {
+        assertNotNull(patient.getBloodGroup());
+        assertEquals("O+", patient.getBloodGroup());
+        
+        // Test setter with different blood groups
+        patient.setBloodGroup("A+");
+        assertEquals("A+", patient.getBloodGroup());
+        
+        patient.setBloodGroup("B-");
+        assertEquals("B-", patient.getBloodGroup());
+        
+        patient.setBloodGroup("AB+");
+        assertEquals("AB+", patient.getBloodGroup());
+    }
+
+    @Test
+    @DisplayName("Should handle null blood group")
+    void testNullBloodGroup() {
+        Patient patientWithoutBloodGroup = new Patient(
+                "Jane",
+                "Smith",
+                LocalDate.of(1990, 1, 1),
+                Patient.Gender.FEMALE,
+                "Cardiology",
+                false
+        );
+        assertNull(patientWithoutBloodGroup.getBloodGroup());
+        
+        // Set blood group later
+        patientWithoutBloodGroup.setBloodGroup("A-");
+        assertEquals("A-", patientWithoutBloodGroup.getBloodGroup());
+    }
+
+    @Test
+    @DisplayName("Should create patient with blood group using full constructor")
+    void testCreatePatientWithBloodGroup() {
+        Patient patientWithBloodGroup = new Patient(
+                "Michael",
+                "Johnson",
+                LocalDate.of(1978, 3, 15),
+                Patient.Gender.MALE,
+                "Pediatrics",
+                false,
+                "O-"
+        );
+        assertEquals("O-", patientWithBloodGroup.getBloodGroup());
+    }
+
+    @Test
+    @DisplayName("Should include blood group in toString")
+    void testToStringWithBloodGroup() {
+        String result = patient.toString();
+        assertTrue(result.contains("bloodGroup='O+'"));
     }
 }

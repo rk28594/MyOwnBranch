@@ -41,6 +41,7 @@ class PatientRepositoryTest {
                 "Cardiology",
                 false
         );
+        patient1.setBloodGroup("O+");
 
         patient2 = new Patient(
                 "Sarah",
@@ -50,6 +51,7 @@ class PatientRepositoryTest {
                 "Emergency",
                 true
         );
+        patient2.setBloodGroup("A-");
     }
 
     @Test
@@ -185,5 +187,52 @@ class PatientRepositoryTest {
         List<Patient> patients = patientRepository.findByDepartment("Neurology");
 
         assertTrue(patients.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Should save and retrieve patient with blood group")
+    void testSaveAndRetrievePatientWithBloodGroup() {
+        Patient savedPatient = patientRepository.save(patient1);
+        entityManager.flush();
+
+        Optional<Patient> foundPatient = patientRepository.findById(savedPatient.getId());
+
+        assertTrue(foundPatient.isPresent());
+        assertEquals("O+", foundPatient.get().getBloodGroup());
+    }
+
+    @Test
+    @DisplayName("Should update patient blood group")
+    void testUpdatePatientBloodGroup() {
+        Patient savedPatient = patientRepository.save(patient1);
+        entityManager.flush();
+
+        savedPatient.setBloodGroup("AB+");
+        patientRepository.save(savedPatient);
+        entityManager.flush();
+
+        Optional<Patient> updatedPatient = patientRepository.findById(savedPatient.getId());
+        assertTrue(updatedPatient.isPresent());
+        assertEquals("AB+", updatedPatient.get().getBloodGroup());
+    }
+
+    @Test
+    @DisplayName("Should handle null blood group in database")
+    void testNullBloodGroupInDatabase() {
+        Patient patientWithoutBloodGroup = new Patient(
+                "Michael",
+                "Johnson",
+                LocalDate.of(1978, 3, 15),
+                Patient.Gender.MALE,
+                "Pediatrics",
+                false
+        );
+        
+        Patient savedPatient = patientRepository.save(patientWithoutBloodGroup);
+        entityManager.flush();
+
+        Optional<Patient> foundPatient = patientRepository.findById(savedPatient.getId());
+        assertTrue(foundPatient.isPresent());
+        assertNull(foundPatient.get().getBloodGroup());
     }
 }

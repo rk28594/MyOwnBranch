@@ -54,6 +54,7 @@ class PatientControllerTest {
                 false
         );
         patient1.setId(1L);
+        patient1.setBloodGroup("O+");
 
         patient2 = new Patient(
                 "Sarah",
@@ -64,6 +65,7 @@ class PatientControllerTest {
                 true
         );
         patient2.setId(2L);
+        patient2.setBloodGroup("A-");
     }
 
     @Test
@@ -215,5 +217,80 @@ class PatientControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(patientJson))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Should return patient with blood group when getting by ID")
+    void testGetPatientWithBloodGroup() throws Exception {
+        when(patientService.getPatientById(1L)).thenReturn(Optional.of(patient1));
+
+        mockMvc.perform(get("/api/v1/patients/1")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bloodGroup", is("O+")));
+    }
+
+    @Test
+    @DisplayName("Should return all patients with blood group information")
+    void testGetAllPatientsWithBloodGroup() throws Exception {
+        List<Patient> patients = Arrays.asList(patient1, patient2);
+        when(patientService.getAllPatients()).thenReturn(patients);
+
+        mockMvc.perform(get("/api/v1/patients")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].bloodGroup", is("O+")))
+                .andExpect(jsonPath("$[1].bloodGroup", is("A-")));
+    }
+
+    @Test
+    @DisplayName("Should create patient with blood group")
+    void testCreatePatientWithBloodGroup() throws Exception {
+        Patient newPatient = new Patient(
+                "Michael",
+                "Johnson",
+                LocalDate.of(1978, 3, 15),
+                Patient.Gender.MALE,
+                "Pediatrics",
+                false
+        );
+        newPatient.setBloodGroup("B+");
+        newPatient.setId(3L);
+
+        when(patientService.savePatient(any(Patient.class))).thenReturn(newPatient);
+
+        String patientJson = objectMapper.writeValueAsString(newPatient);
+
+        mockMvc.perform(post("/api/v1/patients")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(patientJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.bloodGroup", is("B+")));
+    }
+
+    @Test
+    @DisplayName("Should update patient blood group")
+    void testUpdatePatientBloodGroup() throws Exception {
+        Patient updatedPatient = new Patient(
+                "John",
+                "Doe",
+                LocalDate.of(1985, 5, 12),
+                Patient.Gender.MALE,
+                "Cardiology",
+                false
+        );
+        updatedPatient.setId(1L);
+        updatedPatient.setBloodGroup("AB+");
+
+        when(patientService.getPatientById(1L)).thenReturn(Optional.of(patient1));
+        when(patientService.savePatient(any(Patient.class))).thenReturn(updatedPatient);
+
+        String patientJson = objectMapper.writeValueAsString(updatedPatient);
+
+        mockMvc.perform(put("/api/v1/patients/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(patientJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bloodGroup", is("AB+")));
     }
 }
