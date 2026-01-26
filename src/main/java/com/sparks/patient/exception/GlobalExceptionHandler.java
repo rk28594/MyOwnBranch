@@ -39,6 +39,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(ShiftNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleShiftNotFoundException(
+            ShiftNotFoundException ex, HttpServletRequest request) {
+        log.warn("Shift not found: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(InvalidTimeSlotException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTimeSlotException(
+            InvalidTimeSlotException ex, HttpServletRequest request) {
+        log.warn("Invalid time slot: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateEmailException(
             DuplicateEmailException ex, HttpServletRequest request) {
