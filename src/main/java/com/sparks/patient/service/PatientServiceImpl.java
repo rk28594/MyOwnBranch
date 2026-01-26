@@ -1,0 +1,120 @@
+package com.sparks.patient.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.sparks.patient.dto.PatientRequest;
+import com.sparks.patient.dto.PatientResponse;
+import com.sparks.patient.entity.Patient;
+import com.sparks.patient.exception.DuplicateEmailException;
+import com.sparks.patient.exception.PatientNotFoundException;
+import com.sparks.patient.mapper.PatientMapper;
+import com.sparks.patient.repository.PatientRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Implementation of PatientService
+ * Handles all patient-related business logic
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class PatientServiceImpl implements PatientService {
+
+    private final PatientRepository patientRepository;
+    private final PatientMapper patientMapper;
+
+    /**
+     * Create a new patient - SCRUM-14: Patient Onboarding API
+     * POST /api/v1/patients returns 201 Created
+     * Persists data to H2 database
+     */
+    @Override
+    public PatientResponse createPatient(PatientRequest request) {
+        log.info("Creating new patient with email: {}", request.getEmail());
+        
+        // Check for duplicate email
+        if (patientRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateEmailException(request.getEmail());
+        }
+        
+        Patient patient = patientMapper.toEntity(request);
+        Patient savedPatient = patientRepository.save(patient);
+        
+        log.info("Patient created successfully with ID: {}", savedPatient.getId());
+        return patientMapper.toResponse(savedPatient);
+    }
+
+    /**
+     * Get patient by ID - SCRUM-15: Patient Search & Profile Retrieval
+     * GET /api/v1/patients/{id} returns the profile
+     * Returns 404 for invalid IDs
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PatientResponse getPatientById(Long id) {
+        log.info("Fetching patient with ID: {}", id);
+        
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() -> new PatientNotFoundException(id));
+        
+        return patientMapper.toResponse(patient);
+    }
+
+    /**
+     * Get all patients
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<PatientResponse> getAllPatients() {
+        log.info("Fetching all patients");
+        
+        return patientRepository.findAll().stream()
+                .map(patientMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Update an existing patient
+     */
+    @Override
+    public PatientResponse updatePatient(Long id, PatientRequest request) {
+        log.info("Updating patient with ID: {}", id);
+        
+        Patient patient = patientRepository.findById(id)
+                .orElseThrow(() -> new PatientNotFoundException(id));
+        
+        // Check for email conflict (if email is being changed)
+        if (!patient.getEmail().equals(request.getEmail()) 
+                && patientRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateEmailException(request.getEmail());
+        }
+        
+        patientMapper.updateEntity(patient, request);
+        Patient updatedPatient = patientRepository.save(patient);
+        
+        log.info("Patient updated successfully with ID: {}", updatedPatient.getId());
+        return patientMapper.toResponse(updatedPatient);
+    }
+
+    /**
+     * Delete a patient
+     */
+    @Override
+    public void deletePatient(Long id) {
+        log.info("Deleting patient with ID: {}", id);
+        
+        if (!patientRepository.existsById(id)) {
+            throw new PatientNotFoundException(id);
+        }
+        
+        patientRepository.deleteById(id);
+        log.info("Patient deleted successfully with ID: {}", id);
+    }
+}
