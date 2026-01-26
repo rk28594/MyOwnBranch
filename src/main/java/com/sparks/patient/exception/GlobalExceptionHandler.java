@@ -84,6 +84,25 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    /**
+     * SCRUM-19: Handle shift conflict exception
+     * Returns 409 CONFLICT when a doctor already has a conflicting shift
+     */
+    @ExceptionHandler(ShiftConflictException.class)
+    public ResponseEntity<ErrorResponse> handleShiftConflictException(
+            ShiftConflictException ex, HttpServletRequest request) {
+        log.warn("Shift conflict: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {

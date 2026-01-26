@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +27,7 @@ import com.sparks.patient.dto.ShiftRequest;
 import com.sparks.patient.dto.ShiftResponse;
 import com.sparks.patient.entity.Shift;
 import com.sparks.patient.exception.InvalidTimeSlotException;
+import com.sparks.patient.exception.ShiftConflictException;
 import com.sparks.patient.exception.ShiftNotFoundException;
 import com.sparks.patient.mapper.ShiftMapper;
 import com.sparks.patient.repository.ShiftRepository;
@@ -35,6 +37,7 @@ import com.sparks.patient.repository.ShiftRepository;
  * Tests business logic in isolation using mocks
  * 
  * SCRUM-18: Shift Definition & Time-Slot Logic
+ * SCRUM-19: Shift Conflict Validator (Service Layer)
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ShiftService Unit Tests")
@@ -113,6 +116,8 @@ class ShiftServiceImplTest {
         void shouldCreateShiftSuccessfully() {
             // Given
             when(shiftMapper.toEntity(validShiftRequest)).thenReturn(validShift);
+            when(shiftRepository.findConflictingShifts(1L, LocalTime.of(9, 0), LocalTime.of(17, 0)))
+                    .thenReturn(List.of()); // SCRUM-19: No conflicts
             when(shiftRepository.save(validShift)).thenReturn(validShift);
             when(shiftMapper.toResponse(validShift)).thenReturn(shiftResponse);
 
@@ -128,6 +133,7 @@ class ShiftServiceImplTest {
             assertThat(result.getRoom()).isEqualTo("Room-101");
 
             verify(shiftMapper).toEntity(validShiftRequest);
+            verify(shiftRepository).findConflictingShifts(1L, LocalTime.of(9, 0), LocalTime.of(17, 0));
             verify(shiftRepository).save(validShift);
             verify(shiftMapper).toResponse(validShift);
         }
@@ -170,6 +176,309 @@ class ShiftServiceImplTest {
             // When/Then
             assertThatThrownBy(() -> shiftService.createShift(equalTimeRequest))
                     .isInstanceOf(InvalidTimeSlotException.class);
+
+            verify(shiftRepository, never()).save(any(Shift.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("SCRUM-19: Shift Conflict Validator Tests")
+    class ShiftConflictValidatorTests {
+
+        @Test
+        @DisplayName("SCRUM-19 Test Scenario: Given doctor is busy from 1 PM to 3 PM, When adding shift at 2 PM, Then system rejects it")
+        void shouldRejectShiftWhenDoctorHasConflictingShift() {
+            // Given - Doctor has an existing shift from 13:00 (1 PM) to 15:00 (3 PM)
+            Shift existingShift = Shift.builder()
+                    .id(1L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(13, 0))  // 1 PM
+                    .endTime(LocalTime.of(15, 0))    // 3 PM
+                    .room("Room-101")
+                    .build();
+
+            // New shift request from 14:00 (2 PM) to 16:00 (4 PM) - conflicts with existing
+            ShiftRequest conflictingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))  // 2 PM
+                    .endTime(LocalTime.of(16, 0))    // 4 PM
+                    .room("Room-102")
+                    .build();
+
+            Shift conflictingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(16, 0))
+                    .room("Room-102")
+                    .build();
+
+            when(shiftMapper.toEntity(conflictingRequest)).thenReturn(conflictingShift);
+            when(shiftRepository.findConflictingShifts(1L, LocalTime.of(14, 0), LocalTime.of(16, 0)))
+                    .thenReturn(List.of(existingShift));
+
+            // When/Then - System should reject the conflicting shift
+            assertThatThrownBy(() -> shiftService.createShift(conflictingRequest))
+                    .isInstanceOf(ShiftConflictException.class)
+                    .hasMessageContaining("Doctor 1 already has a conflicting shift between 13:00 and 15:00");
+
+            verify(shiftMapper).toEntity(conflictingRequest);
+            verify(shiftRepository).findConflictingShifts(1L, LocalTime.of(14, 0), LocalTime.of(16, 0));
+            verify(shiftRepository, never()).save(any(Shift.class));
+        }
+
+        @Test
+        @DisplayName("Should allow shift when doctor has no conflicting shifts")
+        void shouldAllowShiftWhenNoConflicts() {
+            // Given - Doctor has shift from 9 AM to 12 PM
+            // New shift is from 14:00 (2 PM) to 17:00 (5 PM) - no conflict
+            ShiftRequest nonConflictingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            Shift newShift = Shift.builder()
+                    .id(2L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            ShiftResponse expectedResponse = ShiftResponse.builder()
+                    .id(2L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            when(shiftMapper.toEntity(nonConflictingRequest)).thenReturn(newShift);
+            when(shiftRepository.findConflictingShifts(1L, LocalTime.of(14, 0), LocalTime.of(17, 0)))
+                    .thenReturn(List.of()); // No conflicts
+            when(shiftRepository.save(newShift)).thenReturn(newShift);
+            when(shiftMapper.toResponse(newShift)).thenReturn(expectedResponse);
+
+            // When
+            ShiftResponse result = shiftService.createShift(nonConflictingRequest);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo(2L);
+            verify(shiftRepository).save(newShift);
+        }
+
+        @Test
+        @DisplayName("Should allow shift when starts exactly when another ends (adjacent shifts)")
+        void shouldAllowAdjacentShifts() {
+            // Given - Doctor has shift from 9 AM to 12 PM
+            // New shift starts at exactly 12 PM - should be allowed (no overlap)
+            ShiftRequest adjacentRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(12, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .build();
+
+            Shift adjacentShift = Shift.builder()
+                    .id(2L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(12, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            ShiftResponse expectedResponse = ShiftResponse.builder()
+                    .id(2L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(12, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .build();
+
+            when(shiftMapper.toEntity(adjacentRequest)).thenReturn(adjacentShift);
+            when(shiftRepository.findConflictingShifts(1L, LocalTime.of(12, 0), LocalTime.of(15, 0)))
+                    .thenReturn(List.of()); // Adjacent shifts don't conflict
+            when(shiftRepository.save(adjacentShift)).thenReturn(adjacentShift);
+            when(shiftMapper.toResponse(adjacentShift)).thenReturn(expectedResponse);
+
+            // When
+            ShiftResponse result = shiftService.createShift(adjacentRequest);
+
+            // Then
+            assertThat(result).isNotNull();
+            verify(shiftRepository).save(adjacentShift);
+        }
+
+        @Test
+        @DisplayName("Should reject shift that completely overlaps existing shift")
+        void shouldRejectCompletelyOverlappingShift() {
+            // Given - Doctor has shift from 10 AM to 2 PM
+            Shift existingShift = Shift.builder()
+                    .id(1L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(10, 0))
+                    .endTime(LocalTime.of(14, 0))
+                    .room("Room-101")
+                    .build();
+
+            // New shift from 9 AM to 5 PM completely encompasses existing shift
+            ShiftRequest overlappingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            Shift overlappingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            when(shiftMapper.toEntity(overlappingRequest)).thenReturn(overlappingShift);
+            when(shiftRepository.findConflictingShifts(1L, LocalTime.of(9, 0), LocalTime.of(17, 0)))
+                    .thenReturn(List.of(existingShift));
+
+            // When/Then
+            assertThatThrownBy(() -> shiftService.createShift(overlappingRequest))
+                    .isInstanceOf(ShiftConflictException.class);
+
+            verify(shiftRepository, never()).save(any(Shift.class));
+        }
+
+        @Test
+        @DisplayName("Should allow shift for different doctor even with same time slot")
+        void shouldAllowSameTimeSlotForDifferentDoctor() {
+            // Given - Doctor 2 can have shift from 1 PM to 3 PM even if Doctor 1 has same slot
+            ShiftRequest doctor2Request = ShiftRequest.builder()
+                    .doctorId(2L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .build();
+
+            Shift doctor2Shift = Shift.builder()
+                    .id(3L)
+                    .doctorId(2L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            ShiftResponse expectedResponse = ShiftResponse.builder()
+                    .id(3L)
+                    .doctorId(2L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .build();
+
+            when(shiftMapper.toEntity(doctor2Request)).thenReturn(doctor2Shift);
+            when(shiftRepository.findConflictingShifts(2L, LocalTime.of(13, 0), LocalTime.of(15, 0)))
+                    .thenReturn(List.of()); // Doctor 2 has no conflicts
+            when(shiftRepository.save(doctor2Shift)).thenReturn(doctor2Shift);
+            when(shiftMapper.toResponse(doctor2Shift)).thenReturn(expectedResponse);
+
+            // When
+            ShiftResponse result = shiftService.createShift(doctor2Request);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getDoctorId()).isEqualTo(2L);
+            verify(shiftRepository).save(doctor2Shift);
+        }
+
+        @Test
+        @DisplayName("Should allow update when no conflict with other shifts (excluding current)")
+        void shouldAllowUpdateWhenNoConflictWithOtherShifts() {
+            // Given - Update shift 1 from 9-17 to 10-18
+            ShiftRequest updateRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(10, 0))
+                    .endTime(LocalTime.of(18, 0))
+                    .room("Room-101")
+                    .build();
+
+            Shift existingShift = Shift.builder()
+                    .id(1L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-101")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            ShiftResponse expectedResponse = ShiftResponse.builder()
+                    .id(1L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(10, 0))
+                    .endTime(LocalTime.of(18, 0))
+                    .room("Room-101")
+                    .build();
+
+            when(shiftRepository.findById(1L)).thenReturn(Optional.of(existingShift));
+            when(shiftRepository.findConflictingShiftsExcluding(1L, LocalTime.of(10, 0), LocalTime.of(18, 0), 1L))
+                    .thenReturn(List.of()); // No conflicts when excluding current shift
+            when(shiftRepository.save(existingShift)).thenReturn(existingShift);
+            when(shiftMapper.toResponse(existingShift)).thenReturn(expectedResponse);
+
+            // When
+            ShiftResponse result = shiftService.updateShift(1L, updateRequest);
+
+            // Then
+            assertThat(result).isNotNull();
+            verify(shiftRepository).findConflictingShiftsExcluding(1L, LocalTime.of(10, 0), LocalTime.of(18, 0), 1L);
+            verify(shiftRepository).save(existingShift);
+        }
+
+        @Test
+        @DisplayName("Should reject update when conflicts with another shift")
+        void shouldRejectUpdateWhenConflictsWithAnotherShift() {
+            // Given - Shift 1 trying to update to time that conflicts with Shift 2
+            Shift existingShift1 = Shift.builder()
+                    .id(1L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(12, 0))
+                    .room("Room-101")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            Shift existingShift2 = Shift.builder()
+                    .id(2L)
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            // Try to update shift 1 to overlap with shift 2
+            ShiftRequest conflictingUpdateRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(16, 0))
+                    .room("Room-101")
+                    .build();
+
+            when(shiftRepository.findById(1L)).thenReturn(Optional.of(existingShift1));
+            when(shiftRepository.findConflictingShiftsExcluding(1L, LocalTime.of(13, 0), LocalTime.of(16, 0), 1L))
+                    .thenReturn(List.of(existingShift2)); // Conflict with shift 2
+
+            // When/Then
+            assertThatThrownBy(() -> shiftService.updateShift(1L, conflictingUpdateRequest))
+                    .isInstanceOf(ShiftConflictException.class)
+                    .hasMessageContaining("Doctor 1 already has a conflicting shift between 14:00 and 17:00");
 
             verify(shiftRepository, never()).save(any(Shift.class));
         }
@@ -288,6 +597,8 @@ class ShiftServiceImplTest {
                     .build();
 
             when(shiftRepository.findById(1L)).thenReturn(Optional.of(validShift));
+            when(shiftRepository.findConflictingShiftsExcluding(1L, LocalTime.of(8, 0), LocalTime.of(16, 0), 1L))
+                    .thenReturn(Collections.emptyList()); // SCRUM-19: No conflicts
             when(shiftRepository.save(validShift)).thenReturn(updatedShift);
             when(shiftMapper.toResponse(updatedShift)).thenReturn(updatedResponse);
 
@@ -299,6 +610,7 @@ class ShiftServiceImplTest {
             assertThat(result.getRoom()).isEqualTo("Room-102");
 
             verify(shiftMapper).updateEntity(validShift, updateRequest);
+            verify(shiftRepository).findConflictingShiftsExcluding(1L, LocalTime.of(8, 0), LocalTime.of(16, 0), 1L);
         }
 
         @Test
