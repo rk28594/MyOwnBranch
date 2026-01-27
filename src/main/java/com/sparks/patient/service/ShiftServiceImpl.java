@@ -1,5 +1,6 @@
 package com.sparks.patient.service;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -10,6 +11,7 @@ import com.sparks.patient.dto.ShiftRequest;
 import com.sparks.patient.dto.ShiftResponse;
 import com.sparks.patient.entity.Shift;
 import com.sparks.patient.exception.InvalidTimeSlotException;
+import com.sparks.patient.exception.ShiftConflictException;
 import com.sparks.patient.exception.ShiftNotFoundException;
 import com.sparks.patient.mapper.ShiftMapper;
 import com.sparks.patient.repository.ShiftRepository;
@@ -23,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
  * 
  * SCRUM-18: Shift Definition & Time-Slot Logic
  * Acceptance Criteria: endTime must be strictly after startTime
+ * 
+ * SCRUM-19: Shift Conflict Validator (Service Layer)
+ * Acceptance Criteria: System checks existing shifts for the same doctorId before saving new ones
  */
 @Service
 @RequiredArgsConstructor
@@ -35,7 +40,8 @@ public class ShiftServiceImpl implements ShiftService {
 
     /**
      * Create a new shift
-     * Validates that endTime is strictly after startTime
+     * Validates that endTime is strictly after startTime (SCRUM-18)
+     * Validates that there are no conflicting shifts for the same doctor (SCRUM-19)
      */
     @Override
     public ShiftResponse createShift(ShiftRequest request) {
@@ -48,6 +54,9 @@ public class ShiftServiceImpl implements ShiftService {
             log.warn("Invalid time slot: startTime={}, endTime={}", request.getStartTime(), request.getEndTime());
             throw new InvalidTimeSlotException();
         }
+        
+        // SCRUM-19: Check for conflicting shifts for the same doctor
+        validateNoConflictingShifts(request.getDoctorId(), request.getStartTime(), request.getEndTime(), null);
         
         Shift savedShift = shiftRepository.save(shift);
         
@@ -97,7 +106,8 @@ public class ShiftServiceImpl implements ShiftService {
 
     /**
      * Update an existing shift
-     * Validates that endTime is strictly after startTime
+     * Validates that endTime is strictly after startTime (SCRUM-18)
+     * Validates that there are no conflicting shifts for the same doctor (SCRUM-19)
      */
     @Override
     public ShiftResponse updateShift(Long id, ShiftRequest request) {
@@ -113,6 +123,9 @@ public class ShiftServiceImpl implements ShiftService {
             log.warn("Invalid time slot: startTime={}, endTime={}", request.getStartTime(), request.getEndTime());
             throw new InvalidTimeSlotException();
         }
+        
+        // SCRUM-19: Check for conflicting shifts for the same doctor (excluding current shift)
+        validateNoConflictingShifts(request.getDoctorId(), request.getStartTime(), request.getEndTime(), id);
         
         Shift updatedShift = shiftRepository.save(shift);
         
@@ -133,5 +146,43 @@ public class ShiftServiceImpl implements ShiftService {
         
         shiftRepository.deleteById(id);
         log.info("Shift deleted successfully with ID: {}", id);
+    }
+
+    /**
+     * SCRUM-19: Validate that there are no conflicting shifts for the same doctor
+     * 
+     * Two time slots conflict if they overlap:
+     * - Existing shift starts before new shift ends, AND
+     * - Existing shift ends after new shift starts
+     * 
+     * @param doctorId the doctor's ID
+     * @param startTime the new shift's start time
+     * @param endTime the new shift's end time
+     * @param excludeShiftId the shift ID to exclude (null for new shifts, shift ID for updates)
+     * @throws ShiftConflictException if conflicting shifts exist
+     */
+    private void validateNoConflictingShifts(Long doctorId, LocalTime startTime, LocalTime endTime, Long excludeShiftId) {
+        log.debug("Checking for conflicting shifts for doctor ID: {} between {} and {}", 
+                doctorId, startTime, endTime);
+        
+        List<Shift> conflictingShifts;
+        
+        if (excludeShiftId != null) {
+            // For updates, exclude the current shift from conflict check
+            conflictingShifts = shiftRepository.findConflictingShiftsExcluding(
+                    doctorId, startTime, endTime, excludeShiftId);
+        } else {
+            // For new shifts, check all existing shifts
+            conflictingShifts = shiftRepository.findConflictingShifts(doctorId, startTime, endTime);
+        }
+        
+        if (!conflictingShifts.isEmpty()) {
+            Shift firstConflict = conflictingShifts.get(0);
+            log.warn("SCRUM-19: Shift conflict detected for doctor ID: {}. Conflicting shift: {} - {}", 
+                    doctorId, firstConflict.getStartTime(), firstConflict.getEndTime());
+            throw new ShiftConflictException(doctorId, firstConflict.getStartTime(), firstConflict.getEndTime());
+        }
+        
+        log.debug("No conflicting shifts found for doctor ID: {}", doctorId);
     }
 }
