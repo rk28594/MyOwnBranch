@@ -367,4 +367,243 @@ class ShiftIntegrationTest {
             assertThat(saved.getUpdatedAt()).isNotNull();
         }
     }
+
+    @Nested
+    @DisplayName("SCRUM-19: Shift Conflict Validator Integration Tests")
+    class ShiftConflictValidatorIntegrationTests {
+
+        @Test
+        @DisplayName("POST /api/v1/shifts returns 409 CONFLICT when creating shift that overlaps existing shift")
+        void shouldReturn409WhenCreatingConflictingShift() throws Exception {
+            // Given - Doctor 1 has an existing shift from 1 PM to 3 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(13, 0))  // 1 PM
+                    .endTime(LocalTime.of(15, 0))    // 3 PM
+                    .room("Room-101")
+                    .build();
+            shiftRepository.save(existingShift);
+
+            // New shift request from 2 PM to 4 PM - conflicts with existing
+            ShiftRequest conflictingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))  // 2 PM
+                    .endTime(LocalTime.of(16, 0))    // 4 PM
+                    .room("Room-102")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(post("/api/v1/shifts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(conflictingRequest)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409))
+                    .andExpect(jsonPath("$.message").value("Doctor 1 already has a conflicting shift between 13:00 and 15:00"));
+
+            // Verify conflicting shift was NOT created
+            assertThat(shiftRepository.count()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("POST /api/v1/shifts returns 201 CREATED when creating non-conflicting shift")
+        void shouldReturn201WhenCreatingNonConflictingShift() throws Exception {
+            // Given - Doctor 1 has shift from 9 AM to 12 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(12, 0))
+                    .room("Room-101")
+                    .build();
+            shiftRepository.save(existingShift);
+
+            // New shift from 2 PM to 5 PM - no conflict
+            ShiftRequest nonConflictingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))  // 2 PM
+                    .endTime(LocalTime.of(17, 0))    // 5 PM
+                    .room("Room-102")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(post("/api/v1/shifts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(nonConflictingRequest)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id").exists())
+                    .andExpect(jsonPath("$.doctorId").value(1))
+                    .andExpect(jsonPath("$.startTime").value("14:00:00"))
+                    .andExpect(jsonPath("$.endTime").value("17:00:00"));
+
+            // Verify both shifts exist
+            assertThat(shiftRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("PUT /api/v1/shifts/{id} returns 409 CONFLICT when updating shift to overlap another shift")
+        void shouldReturn409WhenUpdatingShiftToConflict() throws Exception {
+            // Given - Doctor 1 has two shifts: 9-12 and 14-17
+            Shift shift1 = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(12, 0))
+                    .room("Room-101")
+                    .build();
+            Shift saved1 = shiftRepository.save(shift1);
+
+            Shift shift2 = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+            shiftRepository.save(shift2);
+
+            // Try to update shift1 to overlap with shift2 (13:00-16:00)
+            ShiftRequest conflictingUpdateRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(16, 0))
+                    .room("Room-101")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(put("/api/v1/shifts/{id}", saved1.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(conflictingUpdateRequest)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409))
+                    .andExpect(jsonPath("$.message").value("Doctor 1 already has a conflicting shift between 14:00 and 17:00"));
+        }
+
+        @Test
+        @DisplayName("PUT /api/v1/shifts/{id} returns 200 OK when updating shift without conflicts")
+        void shouldReturn200WhenUpdatingShiftWithoutConflict() throws Exception {
+            // Given - Doctor 1 has two shifts: 9-12 and 14-17
+            Shift shift1 = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(12, 0))
+                    .room("Room-101")
+                    .build();
+            Shift saved1 = shiftRepository.save(shift1);
+
+            Shift shift2 = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(14, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+            shiftRepository.save(shift2);
+
+            // Update shift1 to 8-11 - no conflict with shift2
+            ShiftRequest nonConflictingUpdateRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(8, 0))
+                    .endTime(LocalTime.of(11, 0))
+                    .room("Room-101")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(put("/api/v1/shifts/{id}", saved1.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(nonConflictingUpdateRequest)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(saved1.getId()))
+                    .andExpect(jsonPath("$.startTime").value("08:00:00"))
+                    .andExpect(jsonPath("$.endTime").value("11:00:00"));
+        }
+
+        @Test
+        @DisplayName("POST /api/v1/shifts returns 201 CREATED when different doctors have overlapping time slots")
+        void shouldReturn201WhenDifferentDoctorsHaveOverlappingShifts() throws Exception {
+            // Given - Doctor 1 has shift from 1 PM to 3 PM
+            Shift doctor1Shift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(13, 0))
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-101")
+                    .build();
+            shiftRepository.save(doctor1Shift);
+
+            // Doctor 2 wants shift with same time slot - should be allowed
+            ShiftRequest doctor2Request = ShiftRequest.builder()
+                    .doctorId(2L)
+                    .startTime(LocalTime.of(13, 0))  // Same time
+                    .endTime(LocalTime.of(15, 0))    // Same time
+                    .room("Room-102")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(post("/api/v1/shifts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(doctor2Request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.doctorId").value(2));
+
+            // Verify both shifts exist
+            assertThat(shiftRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("POST /api/v1/shifts returns 201 CREATED when shifts are adjacent (no overlap)")
+        void shouldReturn201WhenShiftsAreAdjacent() throws Exception {
+            // Given - Doctor 1 has shift from 9 AM to 12 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(12, 0))
+                    .room("Room-101")
+                    .build();
+            shiftRepository.save(existingShift);
+
+            // New shift starts exactly when existing ends - should be allowed
+            ShiftRequest adjacentRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(12, 0))  // Starts when previous ends
+                    .endTime(LocalTime.of(15, 0))
+                    .room("Room-102")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(post("/api/v1/shifts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(adjacentRequest)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.startTime").value("12:00:00"));
+
+            // Verify both shifts exist
+            assertThat(shiftRepository.count()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("POST /api/v1/shifts returns 409 CONFLICT when new shift completely encompasses existing shift")
+        void shouldReturn409WhenNewShiftEncompassesExisting() throws Exception {
+            // Given - Doctor 1 has shift from 10 AM to 2 PM
+            Shift existingShift = Shift.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(10, 0))
+                    .endTime(LocalTime.of(14, 0))
+                    .room("Room-101")
+                    .build();
+            shiftRepository.save(existingShift);
+
+            // New shift from 9 AM to 5 PM completely encompasses existing
+            ShiftRequest encompassingRequest = ShiftRequest.builder()
+                    .doctorId(1L)
+                    .startTime(LocalTime.of(9, 0))
+                    .endTime(LocalTime.of(17, 0))
+                    .room("Room-102")
+                    .build();
+
+            // When/Then
+            mockMvc.perform(post("/api/v1/shifts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(encompassingRequest)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value(409));
+
+            // Verify only original shift exists
+            assertThat(shiftRepository.count()).isEqualTo(1);
+        }
+    }
 }
