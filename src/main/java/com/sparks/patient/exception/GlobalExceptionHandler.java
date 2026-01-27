@@ -54,6 +54,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
+    @ExceptionHandler(AppointmentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAppointmentNotFoundException(
+            AppointmentNotFoundException ex, HttpServletRequest request) {
+        log.warn("Appointment not found: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
     @ExceptionHandler(InvalidTimeSlotException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTimeSlotException(
             InvalidTimeSlotException ex, HttpServletRequest request) {
