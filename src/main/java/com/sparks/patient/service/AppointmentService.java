@@ -43,4 +43,11 @@ public interface AppointmentService {
      * @return List of all appointments
      */
     List<AppointmentResponse> getAllAppointments();
+    
+    /**
+     * Mark appointment as completed (SCRUM-24: Required for automated billing)
+     * @param appointmentId UUID of the appointment
+     * @return Updated appointment response
+     */
+    AppointmentResponse completeAppointment(String appointmentId);
 }

@@ -117,4 +117,20 @@ public class AppointmentServiceImpl implements AppointmentService {
                 .map(appointmentMapper::toResponse)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public AppointmentResponse completeAppointment(String appointmentId) {
+        log.info("Completing appointment: {}", appointmentId);
+        
+        Appointment appointment = appointmentRepository.findByAppointmentId(appointmentId)
+                .orElseThrow(() -> new AppointmentNotFoundException(
+                        "Appointment not found with id: " + appointmentId));
+        
+        appointment.setStatus(Appointment.AppointmentStatus.COMPLETED);
+        Appointment updatedAppointment = appointmentRepository.save(appointment);
+        
+        log.info("Appointment {} marked as completed", appointmentId);
+        
+        return appointmentMapper.toResponse(updatedAppointment);
+    }
 }

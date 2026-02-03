@@ -107,4 +107,22 @@ public class AppointmentController {
         
         return ResponseEntity.ok(responses);
     }
+
+    /**
+     * Mark appointment as completed
+     * 
+     * @param appointmentId UUID of the appointment
+     * @return Updated appointment response
+     */
+    @PostMapping("/{appointmentId}/complete")
+    @Operation(summary = "Complete appointment", description = "Mark appointment as completed (required for billing)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Appointment completed successfully"),
+        @ApiResponse(responseCode = "404", description = "Appointment not found")
+    })
+    public ResponseEntity<AppointmentResponse> completeAppointment(@PathVariable String appointmentId) {
+        log.info("POST /api/appointments/{}/complete - Completing appointment", appointmentId);
+        AppointmentResponse response = appointmentService.completeAppointment(appointmentId);
+        return ResponseEntity.ok(response);
+    }
 }
