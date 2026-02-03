@@ -18,14 +18,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sparks.patient.dto.PatientRequest;
 import com.sparks.patient.entity.Patient;
 import com.sparks.patient.repository.PatientRepository;
+import com.sparks.patient.test.IntegrationTest;
 
 /**
  * Integration Tests for Patient Management API
@@ -35,9 +37,11 @@ import com.sparks.patient.repository.PatientRepository;
  * SCRUM-15: Patient Search & Profile Retrieval - GET /api/v1/patients/{id}
  * SCRUM-16: Patient Schema & Entity Mapping - Table created in H2
  */
+@IntegrationTest
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestPropertySource(properties = {"spring.jpa.show-sql=false", "logging.level.org.hibernate.SQL=ERROR"})
+@Transactional
 @DisplayName("Patient Management Integration Tests")
 class PatientIntegrationTest {
 

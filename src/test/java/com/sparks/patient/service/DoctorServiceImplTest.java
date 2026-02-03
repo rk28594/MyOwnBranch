@@ -24,15 +24,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.sparks.patient.dto.DoctorRequest;
 import com.sparks.patient.dto.DoctorResponse;
 import com.sparks.patient.entity.Doctor;
-import com.sparks.patient.exception.ResourceNotFoundException;
+import com.sparks.patient.exception.DoctorNotFoundException;
 import com.sparks.patient.mapper.DoctorMapper;
 import com.sparks.patient.repository.DoctorRepository;
+import com.sparks.patient.test.UnitTest;
 
 /**
  * Unit Tests for DoctorServiceImpl
  * SCRUM-20: Doctor Profile Management
  * Tests business logic in isolation using mocks
  */
+@UnitTest
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DoctorService Unit Tests")
 class DoctorServiceImplTest {
@@ -157,7 +159,7 @@ class DoctorServiceImplTest {
 
             // Act & Assert
             assertThatThrownBy(() -> doctorService.getDoctorById(99L))
-                    .isInstanceOf(ResourceNotFoundException.class)
+                    .isInstanceOf(DoctorNotFoundException.class)
                     .hasMessageContaining("not found");
         }
 
@@ -184,7 +186,7 @@ class DoctorServiceImplTest {
 
             // Act & Assert
             assertThatThrownBy(() -> doctorService.getDoctorByLicenseNumber("INVALID"))
-                    .isInstanceOf(ResourceNotFoundException.class)
+                    .isInstanceOf(DoctorNotFoundException.class)
                     .hasMessageContaining("not found");
         }
 
@@ -235,7 +237,6 @@ class DoctorServiceImplTest {
         void shouldUpdateDoctorWhenLicenseNumberNotChanged() {
             // Arrange
             when(doctorRepository.findById(1L)).thenReturn(Optional.of(doctor));
-            when(doctorRepository.existsByLicenseNumber("MED-123456")).thenReturn(false);
             when(doctorRepository.save(doctor)).thenReturn(doctor);
             when(doctorMapper.toResponse(doctor)).thenReturn(doctorResponse);
 
@@ -301,7 +302,7 @@ class DoctorServiceImplTest {
 
             // Act & Assert
             assertThatThrownBy(() -> doctorService.updateDoctor(99L, doctorRequest))
-                    .isInstanceOf(ResourceNotFoundException.class)
+                    .isInstanceOf(DoctorNotFoundException.class)
                     .hasMessageContaining("not found");
         }
     }
@@ -331,7 +332,7 @@ class DoctorServiceImplTest {
 
             // Act & Assert
             assertThatThrownBy(() -> doctorService.deleteDoctor(99L))
-                    .isInstanceOf(ResourceNotFoundException.class)
+                    .isInstanceOf(DoctorNotFoundException.class)
                     .hasMessageContaining("not found");
             verify(doctorRepository, never()).delete(any(Doctor.class));
         }

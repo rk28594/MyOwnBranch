@@ -29,11 +29,13 @@ import com.sparks.patient.exception.DuplicateEmailException;
 import com.sparks.patient.exception.PatientNotFoundException;
 import com.sparks.patient.mapper.PatientMapper;
 import com.sparks.patient.repository.PatientRepository;
+import com.sparks.patient.test.UnitTest;
 
 /**
  * Unit Tests for PatientServiceImpl
  * Tests business logic in isolation using mocks
  */
+@UnitTest
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PatientService Unit Tests")
 class PatientServiceImplTest {

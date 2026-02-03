@@ -18,19 +18,25 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sparks.patient.dto.AppointmentRequest;
 import com.sparks.patient.entity.Doctor;
 import com.sparks.patient.entity.Patient;
+import com.sparks.patient.repository.AppointmentRepository;
 import com.sparks.patient.repository.DoctorRepository;
 import com.sparks.patient.repository.PatientRepository;
+import com.sparks.patient.test.IntegrationTest;
 
 import io.restassured.RestAssured;
 
 /**
  * Integration tests for Appointment - SCRUM-23
  */
+@IntegrationTest
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestPropertySource(properties = {"spring.jpa.show-sql=false", "logging.level.org.hibernate.SQL=ERROR"})
 @DisplayName("Appointment Integration Tests")
 class AppointmentIntegrationTest {
 
@@ -43,6 +49,9 @@ class AppointmentIntegrationTest {
     @Autowired
     private DoctorRepository doctorRepository;
 
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
     private Patient patient;
     private Doctor doctor;
 
@@ -51,7 +60,8 @@ class AppointmentIntegrationTest {
         RestAssured.port = port;
         RestAssured.basePath = "/api/appointments";
 
-        // Clean up and create test data
+        // Clean up and create test data - delete in correct order
+        appointmentRepository.deleteAll();
         patientRepository.deleteAll();
         doctorRepository.deleteAll();
 
