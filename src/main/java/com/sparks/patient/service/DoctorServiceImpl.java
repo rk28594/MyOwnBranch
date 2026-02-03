@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import com.sparks.patient.dto.DoctorRequest;
 import com.sparks.patient.dto.DoctorResponse;
 import com.sparks.patient.entity.Doctor;
-import com.sparks.patient.exception.ResourceNotFoundException;
+import com.sparks.patient.exception.DoctorNotFoundException;
 import com.sparks.patient.mapper.DoctorMapper;
 import com.sparks.patient.repository.DoctorRepository;
 
@@ -57,7 +57,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public DoctorResponse getDoctorById(Long id) {
         Doctor doctor = doctorRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + id));
+            .orElseThrow(() -> new DoctorNotFoundException("Doctor not found with id: " + id));
         return doctorMapper.toResponse(doctor);
     }
 
@@ -69,7 +69,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public DoctorResponse getDoctorByLicenseNumber(String licenseNumber) {
         Doctor doctor = doctorRepository.findByLicenseNumber(licenseNumber)
-            .orElseThrow(() -> new ResourceNotFoundException(
+            .orElseThrow(() -> new DoctorNotFoundException(
                 "Doctor not found with license number: " + licenseNumber
             ));
         return doctorMapper.toResponse(doctor);
@@ -98,7 +98,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public DoctorResponse updateDoctor(Long id, DoctorRequest request) {
         Doctor doctor = doctorRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + id));
+            .orElseThrow(() -> new DoctorNotFoundException("Doctor not found with id: " + id));
 
         // Check if license number is being changed and if new license number already exists
         if (!doctor.getLicenseNumber().equals(request.getLicenseNumber()) &&
@@ -120,7 +120,7 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     public void deleteDoctor(Long id) {
         Doctor doctor = doctorRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Doctor not found with id: " + id));
+            .orElseThrow(() -> new DoctorNotFoundException("Doctor not found with id: " + id));
         doctorRepository.delete(doctor);
     }
 }

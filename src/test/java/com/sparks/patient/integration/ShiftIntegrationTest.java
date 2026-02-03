@@ -18,14 +18,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sparks.patient.dto.ShiftRequest;
 import com.sparks.patient.entity.Shift;
 import com.sparks.patient.repository.ShiftRepository;
+import com.sparks.patient.test.IntegrationTest;
 
 /**
  * Integration Tests for Shift Management API
@@ -35,9 +37,11 @@ import com.sparks.patient.repository.ShiftRepository;
  * Acceptance Criteria: endTime must be strictly after startTime
  * Test Scenario: When startTime is 10:00 and endTime is 09:00, save operation fails with validation error
  */
+@IntegrationTest
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@TestPropertySource(properties = {"spring.jpa.show-sql=false", "logging.level.org.hibernate.SQL=ERROR"})
+@Transactional
 @DisplayName("Shift Management Integration Tests")
 class ShiftIntegrationTest {
 

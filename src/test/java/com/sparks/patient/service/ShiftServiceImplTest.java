@@ -31,6 +31,7 @@ import com.sparks.patient.exception.ShiftConflictException;
 import com.sparks.patient.exception.ShiftNotFoundException;
 import com.sparks.patient.mapper.ShiftMapper;
 import com.sparks.patient.repository.ShiftRepository;
+import com.sparks.patient.test.UnitTest;
 
 /**
  * Unit Tests for ShiftServiceImpl
@@ -39,6 +40,7 @@ import com.sparks.patient.repository.ShiftRepository;
  * SCRUM-18: Shift Definition & Time-Slot Logic
  * SCRUM-19: Shift Conflict Validator (Service Layer)
  */
+@UnitTest
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ShiftService Unit Tests")
 class ShiftServiceImplTest {

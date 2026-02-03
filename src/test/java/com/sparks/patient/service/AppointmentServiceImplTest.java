@@ -32,10 +32,12 @@ import com.sparks.patient.mapper.AppointmentMapper;
 import com.sparks.patient.repository.AppointmentRepository;
 import com.sparks.patient.repository.DoctorRepository;
 import com.sparks.patient.repository.PatientRepository;
+import com.sparks.patient.test.UnitTest;
 
 /**
  * Service tests for Appointment - SCRUM-23
  */
+@UnitTest
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Appointment Service Tests")
 class AppointmentServiceImplTest {
