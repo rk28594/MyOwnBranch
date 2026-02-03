@@ -133,6 +133,63 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    /**
+     * SCRUM-24: Handle invoice not found exception
+     * Returns 404 NOT_FOUND when an invoice is not found
+     */
+    @ExceptionHandler(InvoiceNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleInvoiceNotFoundException(
+            InvoiceNotFoundException ex, HttpServletRequest request) {
+        log.warn("Invoice not found: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    /**
+     * SCRUM-24: Handle invoice already exists exception
+     * Returns 409 CONFLICT when an invoice already exists for an appointment
+     */
+    @ExceptionHandler(InvoiceAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleInvoiceAlreadyExistsException(
+            InvoiceAlreadyExistsException ex, HttpServletRequest request) {
+        log.warn("Invoice already exists: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * SCRUM-24: Handle illegal state exception (e.g., appointment not completed)
+     * Returns 400 BAD_REQUEST when operation cannot be performed
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(
+            IllegalStateException ex, HttpServletRequest request) {
+        log.warn("Illegal state: {}", ex.getMessage());
+        
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex, HttpServletRequest request) {
