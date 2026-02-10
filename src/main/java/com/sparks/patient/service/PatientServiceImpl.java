@@ -109,12 +109,26 @@ public class PatientServiceImpl implements PatientService {
     @Override
     public void deletePatient(Long id) {
         log.info("Deleting patient with ID: {}", id);
-        
+
         if (!patientRepository.existsById(id)) {
             throw new PatientNotFoundException(id);
         }
-        
+
         patientRepository.deleteById(id);
         log.info("Patient deleted successfully with ID: {}", id);
+    }
+
+    /**
+     * Search for a patient by phone number
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PatientResponse getPatientByPhone(String phone) {
+        log.info("Searching for patient with phone: {}", phone);
+
+        Patient patient = patientRepository.findByPhone(phone)
+                .orElseThrow(() -> new PatientNotFoundException("Patient not found with phone: " + phone));
+
+        return patientMapper.toResponse(patient);
     }
 }

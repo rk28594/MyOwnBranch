@@ -26,4 +26,11 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
      * @return true if exists, false otherwise
      */
     boolean existsByEmail(String email);
+
+    /**
+     * Find patient by phone number
+     * @param phone the phone number to search for
+     * @return Optional containing the patient if found
+     */
+    Optional<Patient> findByPhone(String phone);
 }

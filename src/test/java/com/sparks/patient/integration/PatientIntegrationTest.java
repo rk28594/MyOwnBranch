@@ -308,4 +308,51 @@ class PatientIntegrationTest {
                     .andExpect(status().isConflict());
         }
     }
+
+    @Nested
+    @DisplayName("Search Patient by Phone Tests")
+    class SearchPatientByPhoneTests {
+
+        @Test
+        @DisplayName("GET /api/v1/patients/search?phone={phone} returns patient successfully")
+        void shouldSearchPatientByPhoneSuccessfully() throws Exception {
+            // Given
+            Patient patient = Patient.builder()
+                    .firstName("John")
+                    .lastName("Doe")
+                    .dob(LocalDate.of(1990, 5, 15))
+                    .email("john.doe@example.com")
+                    .phone("+1234567890")
+                    .build();
+            Patient savedPatient = patientRepository.save(patient);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/search")
+                    .param("phone", "+1234567890"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(savedPatient.getId()))
+                    .andExpect(jsonPath("$.firstName").value("John"))
+                    .andExpect(jsonPath("$.lastName").value("Doe"))
+                    .andExpect(jsonPath("$.phone").value("+1234567890"))
+                    .andExpect(jsonPath("$.email").value("john.doe@example.com"));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/patients/search returns 404 when phone not found")
+        void shouldReturn404WhenPhoneNotFound() throws Exception {
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/search")
+                    .param("phone", "+9999999999"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.message").value("Patient not found with phone: +9999999999"));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/patients/search validates phone parameter is required")
+        void shouldValidatePhoneParameterRequired() throws Exception {
+            // When/Then - Spring returns 400 for missing required @RequestParam
+            mockMvc.perform(get("/api/v1/patients/search"))
+                    .andExpect(status().is4xxClientError());
+        }
+    }
 }

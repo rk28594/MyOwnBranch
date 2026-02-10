@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.sparks.patient.dto.ErrorResponse;
@@ -132,5 +133,23 @@ public class PatientController {
             @PathVariable Long id) {
         patientService.deletePatient(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Search for a patient by phone number
+     */
+    @GetMapping("/search")
+    @Operation(summary = "Search patient by phone", description = "Find a patient by their phone number")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Patient found",
+                content = @Content(schema = @Schema(implementation = PatientResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Patient not found with the given phone number",
+                content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<PatientResponse> searchPatientByPhone(
+            @Parameter(description = "Phone number to search for", required = true, example = "+1234567890")
+            @RequestParam String phone) {
+        PatientResponse response = patientService.getPatientByPhone(phone);
+        return ResponseEntity.ok(response);
     }
 }

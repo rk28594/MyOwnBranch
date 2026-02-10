@@ -279,8 +279,48 @@ class PatientServiceImplTest {
             // When/Then
             assertThatThrownBy(() -> patientService.deletePatient(999L))
                     .isInstanceOf(PatientNotFoundException.class);
-            
+
             verify(patientRepository, never()).deleteById(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Search Patient by Phone Tests")
+    class SearchPatientByPhoneTests {
+
+        @Test
+        @DisplayName("Should find patient by phone number successfully")
+        void shouldFindPatientByPhoneSuccessfully() {
+            // Given
+            String phoneNumber = "+1234567890";
+            when(patientRepository.findByPhone(phoneNumber)).thenReturn(Optional.of(patient));
+            when(patientMapper.toResponse(patient)).thenReturn(patientResponse);
+
+            // When
+            PatientResponse result = patientService.getPatientByPhone(phoneNumber);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getId()).isEqualTo(1L);
+            assertThat(result.getPhone()).isEqualTo(phoneNumber);
+
+            verify(patientRepository).findByPhone(phoneNumber);
+            verify(patientMapper).toResponse(patient);
+        }
+
+        @Test
+        @DisplayName("Should throw exception when patient not found by phone")
+        void shouldThrowExceptionWhenPatientNotFoundByPhone() {
+            // Given
+            String phoneNumber = "+9999999999";
+            when(patientRepository.findByPhone(phoneNumber)).thenReturn(Optional.empty());
+
+            // When & Then
+            assertThatThrownBy(() -> patientService.getPatientByPhone(phoneNumber))
+                    .isInstanceOf(PatientNotFoundException.class)
+                    .hasMessageContaining("Patient not found with phone");
+
+            verify(patientRepository).findByPhone(phoneNumber);
         }
     }
 }

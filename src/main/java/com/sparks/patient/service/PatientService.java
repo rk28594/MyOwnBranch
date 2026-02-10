@@ -43,4 +43,11 @@ public interface PatientService {
      * @param id the patient ID
      */
     void deletePatient(Long id);
+
+    /**
+     * Search for a patient by phone number
+     * @param phone the phone number to search for
+     * @return the patient response
+     */
+    PatientResponse getPatientByPhone(String phone);
 }
