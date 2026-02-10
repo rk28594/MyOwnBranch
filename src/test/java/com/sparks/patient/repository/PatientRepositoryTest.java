@@ -211,4 +211,51 @@ class PatientRepositoryTest {
             assertThat(patients).hasSize(2);
         }
     }
+
+    @Nested
+    @DisplayName("Count By Last Name Tests")
+    class CountByLastNameTests {
+
+        @Test
+        @DisplayName("Should count patients by last name")
+        void shouldCountPatientsByLastName() {
+            // Given - Create multiple patients with same last name
+            Patient patient1 = Patient.builder()
+                    .firstName("John")
+                    .lastName("Smith")
+                    .dob(LocalDate.of(1990, 5, 15))
+                    .email("john.smith@example.com")
+                    .phone("+1111111111")
+                    .build();
+            Patient patient2 = Patient.builder()
+                    .firstName("Jane")
+                    .lastName("Smith")
+                    .dob(LocalDate.of(1992, 3, 20))
+                    .email("jane.smith@example.com")
+                    .phone("+2222222222")
+                    .build();
+            Patient patient3 = Patient.builder()
+                    .firstName("Bob")
+                    .lastName("Jones")
+                    .dob(LocalDate.of(1985, 8, 10))
+                    .email("bob.jones@example.com")
+                    .phone("+3333333333")
+                    .build();
+
+            patientRepository.save(patient1);
+            patientRepository.save(patient2);
+            patientRepository.save(patient3);
+            entityManager.flush();
+
+            // When
+            long smithCount = patientRepository.countByLastName("Smith");
+            long jonesCount = patientRepository.countByLastName("Jones");
+            long nonExistentCount = patientRepository.countByLastName("NonExistent");
+
+            // Then
+            assertThat(smithCount).isEqualTo(2);
+            assertThat(jonesCount).isEqualTo(1);
+            assertThat(nonExistentCount).isEqualTo(0);
+        }
+    }
 }

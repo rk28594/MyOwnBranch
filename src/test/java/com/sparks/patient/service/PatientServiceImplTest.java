@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -321,6 +322,80 @@ class PatientServiceImplTest {
                     .hasMessageContaining("Patient not found with phone");
 
             verify(patientRepository).findByPhone(phoneNumber);
+        }
+    }
+
+    @Nested
+    @DisplayName("Search Patients by Last Name Tests")
+    class SearchPatientsByLastNameTests {
+
+        @Test
+        @DisplayName("Should find patients by last name successfully")
+        void shouldFindPatientsByLastNameSuccessfully() {
+            // Given
+            String lastName = "Doe";
+            Patient patient2 = Patient.builder()
+                    .id(2L)
+                    .firstName("Jane")
+                    .lastName("Doe")
+                    .dob(LocalDate.of(1992, 3, 20))
+                    .email("jane.doe@example.com")
+                    .phone("+9876543210")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            List<Patient> patients = Arrays.asList(patient, patient2);
+            when(patientRepository.findByLastName(lastName)).thenReturn(patients);
+            when(patientMapper.toResponse(any(Patient.class))).thenReturn(patientResponse);
+
+            // When
+            List<PatientResponse> results = patientService.getPatientsByLastName(lastName);
+
+            // Then
+            assertThat(results).isNotNull();
+            assertThat(results).hasSize(2);
+
+            verify(patientRepository).findByLastName(lastName);
+            verify(patientMapper, times(2)).toResponse(any(Patient.class));
+        }
+
+        @Test
+        @DisplayName("Should return empty list when no patients found by last name")
+        void shouldReturnEmptyListWhenNoPatientsFoundByLastName() {
+            // Given
+            String lastName = "NonExistent";
+            when(patientRepository.findByLastName(lastName)).thenReturn(Arrays.asList());
+
+            // When
+            List<PatientResponse> results = patientService.getPatientsByLastName(lastName);
+
+            // Then
+            assertThat(results).isNotNull();
+            assertThat(results).isEmpty();
+
+            verify(patientRepository).findByLastName(lastName);
+            verify(patientMapper, never()).toResponse(any(Patient.class));
+        }
+
+        @Test
+        @DisplayName("Should find single patient when only one matches last name")
+        void shouldFindSinglePatientWhenOnlyOneMatchesLastName() {
+            // Given
+            String lastName = "Unique";
+            when(patientRepository.findByLastName(lastName)).thenReturn(Arrays.asList(patient));
+            when(patientMapper.toResponse(patient)).thenReturn(patientResponse);
+
+            // When
+            List<PatientResponse> results = patientService.getPatientsByLastName(lastName);
+
+            // Then
+            assertThat(results).isNotNull();
+            assertThat(results).hasSize(1);
+            assertThat(results.get(0).getId()).isEqualTo(1L);
+
+            verify(patientRepository).findByLastName(lastName);
+            verify(patientMapper).toResponse(patient);
         }
     }
 }

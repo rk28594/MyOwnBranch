@@ -50,4 +50,11 @@ public interface PatientService {
      * @return the patient response
      */
     PatientResponse getPatientByPhone(String phone);
+
+    /**
+     * Search for patients by last name
+     * @param lastName the last name to search for
+     * @return list of matching patients
+     */
+    List<PatientResponse> getPatientsByLastName(String lastName);
 }

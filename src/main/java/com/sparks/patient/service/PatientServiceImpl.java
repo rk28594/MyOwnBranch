@@ -131,4 +131,25 @@ public class PatientServiceImpl implements PatientService {
 
         return patientMapper.toResponse(patient);
     }
+
+    /**
+     * Search for patients by last name
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<PatientResponse> getPatientsByLastName(String lastName) {
+        log.info("Searching for patients with last name: {}", lastName);
+
+        List<Patient> patients = patientRepository.findByLastName(lastName);
+
+        if (patients.isEmpty()) {
+            log.info("No patients found with last name: {}", lastName);
+        } else {
+            log.info("Found {} patient(s) with last name: {}", patients.size(), lastName);
+        }
+
+        return patients.stream()
+                .map(patientMapper::toResponse)
+                .collect(Collectors.toList());
+    }
 }

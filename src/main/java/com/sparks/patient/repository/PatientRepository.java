@@ -1,5 +1,6 @@
 package com.sparks.patient.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,4 +34,18 @@ public interface PatientRepository extends JpaRepository<Patient, Long> {
      * @return Optional containing the patient if found
      */
     Optional<Patient> findByPhone(String phone);
+
+    /**
+     * Find all patients by last name
+     * @param lastName the last name to search for
+     * @return List of patients with matching last name
+     */
+    List<Patient> findByLastName(String lastName);
+
+    /**
+     * Count patients by last name
+     * @param lastName the last name to count
+     * @return Number of patients with matching last name
+     */
+    long countByLastName(String lastName);
 }

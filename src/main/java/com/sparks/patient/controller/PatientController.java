@@ -152,4 +152,20 @@ public class PatientController {
         PatientResponse response = patientService.getPatientByPhone(phone);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Search for patients by last name
+     */
+    @GetMapping("/by-lastname")
+    @Operation(summary = "Search patients by last name", description = "Find all patients with a matching last name")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Patients found (may be empty list)",
+                content = @Content(schema = @Schema(implementation = PatientResponse.class)))
+    })
+    public ResponseEntity<List<PatientResponse>> searchPatientsByLastName(
+            @Parameter(description = "Last name to search for", required = true, example = "Doe")
+            @RequestParam String lastname) {
+        List<PatientResponse> responses = patientService.getPatientsByLastName(lastname);
+        return ResponseEntity.ok(responses);
+    }
 }

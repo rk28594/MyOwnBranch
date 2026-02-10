@@ -355,4 +355,83 @@ class PatientIntegrationTest {
                     .andExpect(status().is4xxClientError());
         }
     }
+
+    @Nested
+    @DisplayName("Search Patients by Last Name Tests")
+    class SearchPatientsByLastNameTests {
+
+        @Test
+        @DisplayName("GET /api/v1/patients/by-lastname returns multiple patients successfully")
+        void shouldSearchPatientsByLastNameSuccessfully() throws Exception {
+            // Given
+            Patient patient1 = Patient.builder()
+                    .firstName("John")
+                    .lastName("Smith")
+                    .dob(LocalDate.of(1990, 5, 15))
+                    .email("john.smith@example.com")
+                    .phone("+1234567890")
+                    .build();
+            Patient patient2 = Patient.builder()
+                    .firstName("Jane")
+                    .lastName("Smith")
+                    .dob(LocalDate.of(1992, 3, 20))
+                    .email("jane.smith@example.com")
+                    .phone("+9876543210")
+                    .build();
+            patientRepository.save(patient1);
+            patientRepository.save(patient2);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/by-lastname")
+                    .param("lastname", "Smith"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].lastName").value("Smith"))
+                    .andExpect(jsonPath("$[1].lastName").value("Smith"));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/patients/by-lastname returns empty list when no matches")
+        void shouldReturnEmptyListWhenNoMatches() throws Exception {
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/by-lastname")
+                    .param("lastname", "NonExistent"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(0));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/patients/by-lastname returns single patient when one match")
+        void shouldReturnSinglePatientWhenOneMatch() throws Exception {
+            // Given
+            Patient patient = Patient.builder()
+                    .firstName("Unique")
+                    .lastName("Name")
+                    .dob(LocalDate.of(1990, 5, 15))
+                    .email("unique.name@example.com")
+                    .phone("+1111111111")
+                    .build();
+            Patient savedPatient = patientRepository.save(patient);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/by-lastname")
+                    .param("lastname", "Name"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(savedPatient.getId()))
+                    .andExpect(jsonPath("$[0].firstName").value("Unique"))
+                    .andExpect(jsonPath("$[0].lastName").value("Name"));
+        }
+
+        @Test
+        @DisplayName("GET /api/v1/patients/by-lastname validates lastname parameter is required")
+        void shouldValidateLastNameParameterRequired() throws Exception {
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/by-lastname"))
+                    .andExpect(status().is4xxClientError());
+        }
+    }
 }
