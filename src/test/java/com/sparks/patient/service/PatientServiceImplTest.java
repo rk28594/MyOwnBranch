@@ -22,6 +22,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.sparks.patient.dto.PatientRequest;
 import com.sparks.patient.dto.PatientResponse;
@@ -165,51 +169,55 @@ class PatientServiceImplTest {
     }
 
     @Nested
-    @DisplayName("Get All Patients Tests")
-    class GetAllPatientsTests {
+    @DisplayName("Get All Patients with Pagination Tests")
+    class GetAllPatientsPaginatedTests {
 
         @Test
-        @DisplayName("Should return all patients")
-        void shouldReturnAllPatients() {
+        @DisplayName("Should return paginated patients with default page size")
+        void shouldReturnPaginatedPatients() {
             // Given
+            Pageable pageable = PageRequest.of(0, 20);
             Patient patient2 = Patient.builder()
                     .id(2L)
                     .firstName("Jane")
                     .lastName("Smith")
                     .email("jane.smith@example.com")
                     .build();
-            
-            PatientResponse response2 = PatientResponse.builder()
-                    .id(2L)
-                    .firstName("Jane")
-                    .lastName("Smith")
-                    .email("jane.smith@example.com")
-                    .build();
 
-            when(patientRepository.findAll()).thenReturn(Arrays.asList(patient, patient2));
-            when(patientMapper.toResponse(patient)).thenReturn(patientResponse);
-            when(patientMapper.toResponse(patient2)).thenReturn(response2);
+            Page<Patient> patientPage = new PageImpl<>(
+                Arrays.asList(patient, patient2), pageable, 2);
+
+            when(patientRepository.findAll(pageable)).thenReturn(patientPage);
+            when(patientMapper.toResponse(any(Patient.class))).thenReturn(patientResponse);
 
             // When
-            List<PatientResponse> results = patientService.getAllPatients();
+            Page<PatientResponse> result = patientService.getAllPatients(pageable);
 
             // Then
-            assertThat(results).hasSize(2);
-            assertThat(results.get(0).getFirstName()).isEqualTo("John");
-            assertThat(results.get(1).getFirstName()).isEqualTo("Jane");
+            assertThat(result).isNotNull();
+            assertThat(result.getTotalElements()).isEqualTo(2);
+            assertThat(result.getTotalPages()).isEqualTo(1);
+            assertThat(result.getSize()).isEqualTo(20);
+
+            verify(patientRepository).findAll(pageable);
         }
 
         @Test
-        @DisplayName("Should return empty list when no patients exist")
-        void shouldReturnEmptyListWhenNoPatientsExist() {
+        @DisplayName("Should return empty page when no patients exist")
+        void shouldReturnEmptyPageWhenNoPatientsExist() {
             // Given
-            when(patientRepository.findAll()).thenReturn(Arrays.asList());
+            Pageable pageable = PageRequest.of(0, 20);
+            Page<Patient> emptyPage = new PageImpl<>(Arrays.asList(), pageable, 0);
+
+            when(patientRepository.findAll(pageable)).thenReturn(emptyPage);
 
             // When
-            List<PatientResponse> results = patientService.getAllPatients();
+            Page<PatientResponse> result = patientService.getAllPatients(pageable);
 
             // Then
-            assertThat(results).isEmpty();
+            assertThat(result).isNotNull();
+            assertThat(result.getTotalElements()).isEqualTo(0);
+            assertThat(result.isEmpty()).isTrue();
         }
     }
 

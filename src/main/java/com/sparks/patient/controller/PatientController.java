@@ -3,9 +3,15 @@ package com.sparks.patient.controller;
 import java.util.List;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Pattern;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,6 +45,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Patient Management", description = "APIs for patient onboarding and profile management")
 public class PatientController {
 
@@ -85,13 +92,27 @@ public class PatientController {
     }
 
     /**
-     * Get all patients
+     * Get all patients with pagination
      */
     @GetMapping
-    @Operation(summary = "Get all patients", description = "Retrieve a list of all registered patients")
-    @ApiResponse(responseCode = "200", description = "List of patients retrieved successfully")
-    public ResponseEntity<List<PatientResponse>> getAllPatients() {
-        List<PatientResponse> patients = patientService.getAllPatients();
+    @Operation(summary = "Get all patients with pagination",
+            description = "Retrieve a paginated list of all registered patients")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Paginated list of patients retrieved successfully",
+                content = @Content(schema = @Schema(implementation = Page.class)))
+    })
+    public ResponseEntity<Page<PatientResponse>> getAllPatients(
+            @Parameter(description = "Page number (0-indexed)", example = "0")
+            @RequestParam(defaultValue = "0") int page,
+
+            @Parameter(description = "Page size", example = "20")
+            @RequestParam(defaultValue = "20") int size,
+
+            @Parameter(description = "Sort field and direction", example = "lastName,asc")
+            @RequestParam(defaultValue = "id") String sort) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sort));
+        Page<PatientResponse> patients = patientService.getAllPatients(pageable);
         return ResponseEntity.ok(patients);
     }
 
@@ -148,6 +169,7 @@ public class PatientController {
     })
     public ResponseEntity<PatientResponse> searchPatientByPhone(
             @Parameter(description = "Phone number to search for", required = true, example = "+1234567890")
+            @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone must be a valid phone number")
             @RequestParam String phone) {
         PatientResponse response = patientService.getPatientByPhone(phone);
         return ResponseEntity.ok(response);
