@@ -2,6 +2,9 @@ package com.sparks.patient.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.sparks.patient.dto.PatientRequest;
 import com.sparks.patient.dto.PatientResponse;
 
@@ -25,10 +28,11 @@ public interface PatientService {
     PatientResponse getPatientById(Long id);
 
     /**
-     * Get all patients
-     * @return list of all patients
+     * Get all patients with pagination
+     * @param pageable pagination parameters (page, size, sort)
+     * @return paginated list of patients
      */
-    List<PatientResponse> getAllPatients();
+    Page<PatientResponse> getAllPatients(Pageable pageable);
 
     /**
      * Update an existing patient

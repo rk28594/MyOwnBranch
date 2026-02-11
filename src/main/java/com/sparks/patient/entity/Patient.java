@@ -8,6 +8,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
@@ -32,7 +33,9 @@ import lombok.NoArgsConstructor;
  * - All required fields must be validated
  */
 @Entity
-@Table(name = "patients")
+@Table(name = "patients", indexes = {
+    @Index(name = "idx_patient_email", columnList = "email")
+})
 @Data
 @Builder
 @NoArgsConstructor

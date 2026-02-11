@@ -3,6 +3,8 @@ package com.sparks.patient.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,16 +70,16 @@ public class PatientServiceImpl implements PatientService {
     }
 
     /**
-     * Get all patients
+     * Get all patients with pagination
      */
     @Override
     @Transactional(readOnly = true)
-    public List<PatientResponse> getAllPatients() {
-        log.info("Fetching all patients");
-        
-        return patientRepository.findAll().stream()
-                .map(patientMapper::toResponse)
-                .collect(Collectors.toList());
+    public Page<PatientResponse> getAllPatients(Pageable pageable) {
+        log.info("Fetching patients - page: {}, size: {}",
+                pageable.getPageNumber(), pageable.getPageSize());
+
+        return patientRepository.findAll(pageable)
+                .map(patientMapper::toResponse);
     }
 
     /**
@@ -91,8 +93,10 @@ public class PatientServiceImpl implements PatientService {
                 .orElseThrow(() -> new PatientNotFoundException(id));
         
         // Check for email conflict (if email is being changed)
-        if (!patient.getEmail().equals(request.getEmail()) 
+        if (!patient.getEmail().equals(request.getEmail())
                 && patientRepository.existsByEmail(request.getEmail())) {
+            log.warn("Duplicate email detected - Patient ID: {}, Old email: {}, Attempted new email: {}",
+                    id, patient.getEmail(), request.getEmail());
             throw new DuplicateEmailException(request.getEmail());
         }
         

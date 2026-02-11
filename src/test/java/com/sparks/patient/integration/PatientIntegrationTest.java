@@ -434,4 +434,65 @@ class PatientIntegrationTest {
                     .andExpect(status().is4xxClientError());
         }
     }
+
+    @Nested
+    @DisplayName("Pagination Tests")
+    class PaginationTests {
+
+        @Test
+        @DisplayName("Should return paginated results with custom page size")
+        void shouldReturnPaginatedResults() throws Exception {
+            // Given - Create 5 patients
+            for (int i = 1; i <= 5; i++) {
+                Patient patient = Patient.builder()
+                        .firstName("Patient" + i)
+                        .lastName("Test")
+                        .dob(LocalDate.of(1990, 1, 1))
+                        .email("patient" + i + "@test.com")
+                        .phone("+123456789" + i)
+                        .build();
+                patientRepository.save(patient);
+            }
+
+            // When - Get page 0 with size 2
+            mockMvc.perform(get("/api/v1/patients")
+                            .param("page", "0")
+                            .param("size", "2"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.content.length()").value(2))
+                    .andExpect(jsonPath("$.totalElements").value(5))
+                    .andExpect(jsonPath("$.totalPages").value(3))
+                    .andExpect(jsonPath("$.size").value(2))
+                    .andExpect(jsonPath("$.number").value(0));
+        }
+
+        @Test
+        @DisplayName("Should validate invalid phone number in search")
+        void shouldValidateInvalidPhoneNumber() throws Exception {
+            mockMvc.perform(get("/api/v1/patients/search")
+                            .param("phone", "invalid-phone"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("Should accept valid phone number in search")
+        void shouldAcceptValidPhoneNumber() throws Exception {
+            // Given
+            Patient patient = Patient.builder()
+                    .firstName("John")
+                    .lastName("Doe")
+                    .dob(LocalDate.of(1990, 5, 15))
+                    .email("john.test@example.com")
+                    .phone("+1234567890")
+                    .build();
+            patientRepository.save(patient);
+
+            // When/Then
+            mockMvc.perform(get("/api/v1/patients/search")
+                            .param("phone", "+1234567890"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.phone").value("+1234567890"));
+        }
+    }
 }
